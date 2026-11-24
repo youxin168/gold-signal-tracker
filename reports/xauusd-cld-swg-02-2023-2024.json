@@ -1,0 +1,162 @@
+{
+  "mode": "BACKTEST",
+  "strategy": {
+    "strategy_code": "CLD-SWG-02-v1",
+    "source": "CLD",
+    "style": "SWG",
+    "name": "Channel Breakout",
+    "version_state": "FROZEN",
+    "experimental": false,
+    "implementation": "channel_breakout_v1",
+    "pair": "XAUUSD",
+    "entry_timeframe": "H4",
+    "trend_timeframe": "D1",
+    "trend": {
+      "type": "ema_vs_ema",
+      "fast_period": 50,
+      "slow_period": 200
+    },
+    "setup": {
+      "type": "donchian_breakout",
+      "lookback_closed_candles": 20,
+      "exclude_signal_candle": true,
+      "require_close_outside": true
+    },
+    "stop": {
+      "type": "atr",
+      "atr_period": 14,
+      "atr_multiple": 2
+    },
+    "take_profit_r": [
+      2,
+      3
+    ],
+    "expiry_minutes": 4320,
+    "max_signals_per_utc_day": 1,
+    "session_filter": {
+      "UTC weekday": {
+        "timezone": "UTC",
+        "start_hour": 0,
+        "end_hour": 24
+      }
+    },
+    "news_filter": {
+      "minutes_before": 30,
+      "minutes_after": 30,
+      "impact": [
+        "HIGH"
+      ],
+      "currencies": [
+        "USD",
+        "XAU"
+      ]
+    },
+    "spread_filter": {
+      "max_spread_price": "0.50",
+      "max_age_seconds": 300
+    },
+    "price_tick": "0.01",
+    "execution": {
+      "method": "bid_ohlc_v1",
+      "timeframe": "M1",
+      "spread_price": "0.30",
+      "slippage_price_per_fill": "0.05",
+      "tp1_fraction": "0.50"
+    },
+    "public_rules": [
+      "The closed D1 EMA50 above/below EMA200 sets direction. Decisions are on UTC weekdays.",
+      "Enter on the H4 close strictly beyond the previous 20 closed candles' high/low, in the D1 direction. The breakout candle never changes its own threshold.",
+      "Stop at 2\u00d7 ATR(14). A channel test is PREPARE only. Archived H4/D1 buckets must meet the documented price-coverage thresholds."
+    ]
+  },
+  "data_source": "HISTDATA_ASCII_M1_BID",
+  "inputs": {
+    "M1 candles": "xauusd-M1.csv (SHA-256: 190d1b6c3dd025ec0b480dc62f37574b875f646de8715bb3bc4b3b6023e7c32a)",
+    "H4 candles": "xauusd-H4.csv (SHA-256: d52cb45856725d5a011f794824f15cdbd2c87f57a1bc389fbbdebd857c44bdda)",
+    "D1 candles": "xauusd-D1.csv (SHA-256: 235ab3a8c715b07ed252d75730553e77a92d4379d92b67e923c398b8d77bc1a8)",
+    "H1 candles": "xauusd-H1.csv (SHA-256: 1bd11eb97d17edddbc39111d5879190a6f84b5253c1e87d45f5d067d95bdc770)",
+    "News snapshots": "Not supplied",
+    "Bid/ask observations": "Not supplied",
+    "Frozen strategy": "strategies.json (SHA-256: 957a41c6a6e8c244d5b35b8e9548ca408a4ee41049786e98410c82f204109874)"
+  },
+  "folds": [
+    {
+      "label": "In-sample",
+      "start_utc": "2023-01-01T00:00:00+00:00",
+      "end_utc_exclusive": "2024-05-26T00:00:00+00:00",
+      "coverage": {
+        "m1_observed": 450250,
+        "m1_slots": 735840,
+        "h4_observed": 1731,
+        "h4_slots": 3066,
+        "d1_observed": 219,
+        "d1_slots": 511,
+        "session_decision_slots": 2190,
+        "missing_h4_decisions": 459,
+        "observed_session_decisions": 1731,
+        "news_unknown": 1731,
+        "spread_unknown": 1731,
+        "both_filters_pass": 0,
+        "technical_skip:No fresh higher-timeframe context": 647,
+        "technical_candidates_before_filters": 79,
+        "technical_candidates_rejected_by_filters": 79,
+        "technical_prepare_before_filters": 58
+      },
+      "metrics": {
+        "signals": 0,
+        "filled": 0,
+        "expired": 0,
+        "unresolved": 0,
+        "missing_m1": 0,
+        "fold_cutoff": 0,
+        "closed": 0,
+        "wins": 0,
+        "losses": 0,
+        "flat": 0,
+        "win_rate_closed": null,
+        "average_r_closed": null,
+        "total_r_closed": null
+      },
+      "records": []
+    },
+    {
+      "label": "Out-of-sample",
+      "start_utc": "2024-05-26T00:00:00+00:00",
+      "end_utc_exclusive": "2025-01-01T00:00:00+00:00",
+      "coverage": {
+        "m1_observed": 214094,
+        "m1_slots": 316800,
+        "h4_observed": 888,
+        "h4_slots": 1320,
+        "d1_observed": 146,
+        "d1_slots": 220,
+        "session_decision_slots": 942,
+        "missing_h4_decisions": 54,
+        "observed_session_decisions": 888,
+        "news_unknown": 888,
+        "spread_unknown": 888,
+        "both_filters_pass": 0,
+        "technical_skip:No fresh higher-timeframe context": 196,
+        "technical_candidates_before_filters": 61,
+        "technical_candidates_rejected_by_filters": 61,
+        "technical_prepare_before_filters": 55
+      },
+      "metrics": {
+        "signals": 0,
+        "filled": 0,
+        "expired": 0,
+        "unresolved": 0,
+        "missing_m1": 0,
+        "fold_cutoff": 0,
+        "closed": 0,
+        "wins": 0,
+        "losses": 0,
+        "flat": 0,
+        "win_rate_closed": null,
+        "average_r_closed": null,
+        "total_r_closed": null
+      },
+      "records": []
+    }
+  ]
+}

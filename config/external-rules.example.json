@@ -1,0 +1,7 @@
+{
+  "strategy_code": "OWN-INT-01-v1",
+  "name": "Example rules-based gold variant",
+  "template": "CLD-INT-01-v1",
+  "parameters": { "atr_multiple": 1.8, "take_profit_r": [1, 2] },
+  "public_rules": ["Example config only; not a recommendation and not currently registered."]
+}

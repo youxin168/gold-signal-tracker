@@ -1,0 +1,13 @@
+{
+  "source": "FORMAT ONLY — replace with your reviewed calendar source",
+  "verified_at_utc": "2024-07-03T06:00:00Z",
+  "coverage_start_utc": "2024-07-03T00:00:00Z",
+  "coverage_end_utc": "2024-07-04T00:00:00Z",
+  "events": [
+    {
+      "at_utc": "2024-07-03T12:30:00Z",
+      "currency": "USD",
+      "impact": "HIGH"
+    }
+  ]
+}

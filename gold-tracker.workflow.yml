@@ -1,0 +1,154 @@
+name: Gold signal tracker
+
+on:
+  workflow_dispatch:
+    inputs:
+      manual_signal:
+        description: "Optional public LIVE CSV row: external_id,code,direction,entry,sl,tp1,tp2 (no timestamp)"
+        type: string
+        required: false
+      confirm_new_publication:
+        description: "I am first publishing this testing signal now"
+        type: boolean
+        default: false
+  schedule:
+    # M5 scans run on both schedules; publish snapshots on the first schedule only.
+    - cron: "2,17,32,47 * * * 1-5"
+    - cron: "7,12,22,27,37,42,52,57 * * * 1-5"
+
+concurrency:
+  group: gold-tracker-state-and-pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    if: ${{ github.ref_name == github.event.repository.default_branch && (github.event_name == 'workflow_dispatch' || vars.TRACKER_ENABLE_LIVE == 'true') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: write
+      pages: read
+    env:
+      PUBLISH_SNAPSHOT: ${{ vars.TRACKER_ENABLE_PAGES == 'true' && github.event.schedule != '7,12,22,27,37,42,52,57 * * * 1-5' }}
+    outputs:
+      pages_ready: ${{ steps.ready.outputs.pages_ready }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install Python tool and locked dependencies
+        run: |
+          python -m pip install "uv==0.13.4"
+          uv sync --locked
+      - name: Restore signal journal
+        run: bash scripts/runner-state.sh restore
+      - name: Publish one newly supplied manual signal
+        if: ${{ inputs.manual_signal != '' }}
+        env:
+          ROW: ${{ inputs.manual_signal }}
+          CONFIRMED: ${{ inputs.confirm_new_publication }}
+          LIVE_ENABLED: ${{ vars.TRACKER_ENABLE_LIVE == 'true' }}
+          FEED: ${{ vars.TRACKER_LIVE_FEED || 'oanda' }}
+        run: |
+          if [[ "$FEED" != 'oanda' || "$LIVE_ENABLED" != 'true' || "$CONFIRMED" != 'true' || "$ROW" =~ [$'\r\n'] ]]; then
+            echo 'Manual LIVE publication needs the OANDA live runner, first-publication confirmation and one CSV row.'
+            exit 1
+          fi
+          file=$(mktemp)
+          trap 'rm -f "$file"' EXIT
+          printf '%s\n%s,\n' 'external_id,strategy_code,direction,entry,sl,tp1,tp2,issued_at_utc' "$ROW" > "$file"
+          uv run --locked signal-tracker import-signals --mode LIVE --data-source OANDA_PRACTICE_BID \
+            --confirm-new-publication --file "$file"
+      - name: Check outcomes and scan eligible prospective setups
+        id: tick
+        if: ${{ vars.TRACKER_ENABLE_LIVE == 'true' }}
+        continue-on-error: true
+        env:
+          OANDA_API_TOKEN: ${{ secrets.OANDA_API_TOKEN }}
+          OANDA_PRACTICE_ACCOUNT_ID: ${{ secrets.OANDA_PRACTICE_ACCOUNT_ID }}
+          SIGNAL_CALENDAR_JSON: ${{ secrets.SIGNAL_CALENDAR_JSON }}
+          FEED: ${{ vars.TRACKER_LIVE_FEED || 'oanda' }}
+        run: |
+          calendar=()
+          if [[ "$FEED" == 'oanda' && -n "$SIGNAL_CALENDAR_JSON" ]]; then
+            umask 077
+            file=$(mktemp)
+            trap 'rm -f "$file"' EXIT
+            printf '%s\n' "$SIGNAL_CALENDAR_JSON" > "$file"
+            calendar=(--calendar "$file")
+          fi
+          uv run --locked signal-tracker scheduled-tick --feed "$FEED" --runner-status generated-artifacts/runner-status.json "${calendar[@]}"
+      - name: Save state before delivering alerts
+        if: ${{ vars.TRACKER_ENABLE_LIVE == 'true' }}
+        run: bash scripts/runner-state.sh save
+      - name: Send configured Telegram alerts
+        id: alerts
+        if: ${{ vars.TRACKER_ENABLE_LIVE == 'true' && vars.TRACKER_ENABLE_TELEGRAM == 'true' }}
+        continue-on-error: true
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: uv run --locked signal-tracker send-alerts
+      - name: Save Telegram acknowledgements
+        if: ${{ vars.TRACKER_ENABLE_LIVE == 'true' && vars.TRACKER_ENABLE_TELEGRAM == 'true' }}
+        run: bash scripts/runner-state.sh save
+      - name: Generate public snapshot
+        env:
+          LIVE_ENABLED: ${{ vars.TRACKER_ENABLE_LIVE == 'true' }}
+          TICK_OUTCOME: ${{ steps.tick.outcome }}
+        run: |
+          if [[ "$LIVE_ENABLED" != 'true' ]]; then
+            printf '%s\n' '{"state":"disabled","updated_at_utc":null,"message":"Scheduled live scans are disabled. Past records, if any, are retained."}' > generated-artifacts/runner-status.json
+          elif [[ "$TICK_OUTCOME" == 'failure' ]]; then
+            printf '%s\n' '{"state":"error","updated_at_utc":null,"message":"The scheduled update was incomplete. Existing signal records were retained."}' > generated-artifacts/runner-status.json
+          fi
+          uv run --locked signal-tracker export-site --runner-status generated-artifacts/runner-status.json
+      - uses: actions/configure-pages@v5
+        if: ${{ env.PUBLISH_SNAPSHOT == 'true' }}
+        id: pages
+      - uses: pnpm/action-setup@v4
+        if: ${{ env.PUBLISH_SNAPSHOT == 'true' }}
+        with:
+          version: "10.26.1"
+      - uses: actions/setup-node@v4
+        if: ${{ env.PUBLISH_SNAPSHOT == 'true' }}
+        with:
+          node-version: "24"
+      - name: Build GitHub Pages site
+        if: ${{ env.PUBLISH_SNAPSHOT == 'true' }}
+        env:
+          PORT: "4173"
+          PAGES_BASE_PATH: ${{ steps.pages.outputs.base_path }}
+        run: |
+          export BASE_PATH="${PAGES_BASE_PATH%/}/"
+          pnpm --filter @workspace/signal-tracker... install --frozen-lockfile
+          pnpm --filter @workspace/signal-tracker run build
+      - uses: actions/upload-pages-artifact@v3
+        if: ${{ env.PUBLISH_SNAPSHOT == 'true' }}
+        with:
+          path: artifacts/signal-tracker/dist/public
+      - name: Mark Pages artifact ready
+        id: ready
+        if: ${{ env.PUBLISH_SNAPSHOT == 'true' }}
+        run: echo 'pages_ready=true' >> "$GITHUB_OUTPUT"
+      - name: Make incomplete automation visible in the job summary
+        if: ${{ steps.tick.outcome == 'failure' || steps.alerts.outcome == 'failure' }}
+        run: echo "The market scan or Telegram delivery was incomplete. See the step logs; the underlying journal was retained." >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    if: ${{ needs.snapshot.outputs.pages_ready == 'true' }}
+    needs: snapshot
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/deploy-pages@v4
+        id: deployment

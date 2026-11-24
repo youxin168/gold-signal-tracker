@@ -1,0 +1,5 @@
+{
+  "styles": ["INT"],
+  "sources": ["CLD"],
+  "events": ["PREPARE", "PENDING", "ACTIVE", "TP1", "TP2", "SL", "BE", "EXPIRED"]
+}

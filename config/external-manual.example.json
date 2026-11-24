@@ -1,0 +1,7 @@
+{
+  "strategy_code": "EXT1-INT-01-v1",
+  "name": "Example manual gold journal",
+  "template": "manual",
+  "parameters": { "expiry_minutes": 240, "max_signals_per_utc_day": 2 },
+  "public_rules": ["Replace this note with a public description of the signal source."]
+}

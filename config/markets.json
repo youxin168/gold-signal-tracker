@@ -1,0 +1,8 @@
+{
+  "default_pair": "XAUUSD",
+  "pairs": {
+    "XAUUSD": {"enabled": true, "oanda_instrument": "XAU_USD", "histdata_symbol": "XAUUSD"},
+    "EURUSD": {"enabled": false, "oanda_instrument": "EUR_USD", "histdata_symbol": "EURUSD"},
+    "GBPUSD": {"enabled": false, "oanda_instrument": "GBP_USD", "histdata_symbol": "GBPUSD"}
+  }
+}

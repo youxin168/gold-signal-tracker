@@ -1,0 +1,6 @@
+{
+  "styles": ["SCA", "INT", "SWG"],
+  "sources": ["CLD", "OWN"],
+  "events": ["PENDING"],
+  "results": ["trade", "fixed"]
+}
